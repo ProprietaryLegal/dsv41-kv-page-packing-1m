@@ -12,9 +12,9 @@ An experimental overlay for the HeNryous serving image combines KV page packing,
 
 ## Status
 
-2026-10-23 — in progress: GB10 validation in progress.
+2026-10-23 — KV page packing validated on GB10 at 327,680 (production promotion pending); 524,288 serves correctly but is held for a prefill regression under investigation.
 
-CPU checks and two independent reviews passed, every switch defaults to off, and there are no results yet.
+1,048,576 (1M) was not tested on GB10 in this window.
 
 ## What it is
 
@@ -34,9 +34,13 @@ Use it in a supervised test window when a matching base image and remote-drafter
 
 Complete the shorter-context inertness, packing, corruption, prefix-identity, memory, and forced-pressure checks before combining this overlay with prefix storage or scheduling changes. Validate combinations separately, even where their mounted files do not overlap.
 
+The validated 327,680 configuration is a candidate for more KV capacity, with production promotion pending. Keep 524,288 in supervised testing while its cold-prefill regression is investigated; 1M remains untested on GB10.
+
 ## When not to use it
 
 Do not use it as a qualified production upgrade or as evidence of improved decode speed. Allocator arithmetic does not establish usable request concurrency. Avoid an unreviewed image revision, mismatched switches across ranks, or a longer context limit that the remote drafter cannot serve.
+
+Do not promote 524,288 while its prefill hold remains: cold single-stream prefill was about +35 % at the measured prompt lengths, including shorter prompts. Do not treat the repository's 1M name as a tested GB10 context limit.
 
 Keep NVFP4 KV disabled. It is present only because the upstream patch chain depends on its code. Keep the optional KV-display switch disabled because its display module is not shipped.
 
@@ -51,7 +55,43 @@ Keep NVFP4 KV disabled. It is present only because the upstream patch chain depe
 
 ## Measured effect
 
-Not measured yet. GB10 validation in progress.
+Measured 2026-10-23 on two DGX Spark (GB10) nodes, TP2, serving the [DeepSeek-V4.1-Flash-1017 EXL3 2.75 bpw legal-weighted build](https://huggingface.co/ProprietaryLegal/DeepSeek-V4.1-Flash-1017-EXL3-2.75bpw-LegalWeighted-DGX-Spark), with x86 RTX 3090 remote drafting. For `max-model-len=327680`, compare packing on with the same overlay and every switch off. Timing rows are single-stream except the explicitly concurrent row; memory attribution uses separate probed starts. Repeat counts are not included in this released summary.
+
+| Metric / workload | Packing on versus every switch off |
+|---|---|
+| GPU KV cache | 2,502,600 versus 1,604,926 tokens (+55.9 %) |
+| Capacity divided by full request length | 7.64× versus 4.90×; capacity ratios, not measured request concurrency |
+| Allocator arithmetic | Predicted both token counts exactly |
+| Memory saving, idle allocated memory | +1,339 MiB per rank (160 + 1,014 + 165), confirmed by the overlay memory probe |
+| Lowest MemAvailable across these runs | 4.6 GiB |
+| Step p50, short | +0.47 % |
+| Step p50, 32K | −1.65 % |
+| Step p50, 32K × 3 streams | +0.97 % |
+| Step p50, 150K | −2.04 % |
+| Cold-prefill TTFT, 32K | −0.17 % |
+| Cold-prefill TTFT, 150K | −0.14 % |
+| Acceptance | Unchanged |
+
+Measured on the same date, hardware and served model at `max-model-len=524288`, with packing on. Comparisons use the packed 327,680 configuration; cold-prefill and 500K timing rows are single-stream. Repeat counts are not included in this released summary.
+
+| Metric / workload | Result at 524,288 |
+|---|---|
+| GPU KV cache | 2,820,756 tokens (5.38× full request length; a capacity ratio) |
+| Decode | Unchanged versus the packed 327,680 configuration |
+| Cold single-stream prefill, measured prompt lengths | About +35 %; held for investigation |
+| Cold-prefill TTFT, 150K | 93 s versus 69 s |
+| Cold-prefill TTFT, 32K | 20 s versus 15 s |
+| 500K single request | TTFT 322 s; decode 48 tok/s |
+
+Correctness checks:
+
+- At 327,680, the needle/cross-request corruption set passed 16/16 with no foreign codes.
+- Prefix-cache identity checks passed at 327,680, with exact cached-token counts: `floor((n−1)/384)·384`, where `n` is the prompt-token count. Output comparisons use the engine's own run-to-run floor.
+- Greedy and logit A/B checks at 327,680 were within the engine's own run-to-run floor.
+- Forced pool pressure at 1.5 GiB/rank exercised preemption and eviction; all needles were found.
+- At 524,288, needles at 450K and 500K, prefix identity, and the corruption set all passed.
+
+The 524,288 prefill regression is under investigation. A prefill path whose cost may scale with `max-model-len` is a hypothesis; the cause is not proven. 1,048,576 (1M) was not tested on GB10 in this window.
 
 ## Upstream claims
 
@@ -109,7 +149,9 @@ Remove the overlay bind mounts and its runtime-variable overrides from both node
 
 ## Limits and known issues
 
-- **Hardware results are pending.** CPU allocator and view checks do not prove GPU-kernel correctness, output identity, or runtime memory headroom.
+- **Production promotion is pending at 327,680 despite successful GB10 validation.** These bounded checks do not qualify other images, workloads, or overlay combinations.
+- **524,288 is held for a prefill regression under investigation.** Correctness passed and decode was unchanged, but cold single-stream prefill was about +35 % at the measured prompt lengths: 150K TTFT 93 s versus 69 s; 32K 20 s versus 15 s. The cause is not proven.
+- **1,048,576 (1M) was not tested on GB10 in this window.** No result at 524,288 qualifies the larger limit.
 - Packing changes prefix-hit granularity while hashes retain their existing granularity. A hit can need more prompt work. The optional EAGLE trailing-block-drop override has no effect with bounded sliding-window replay in the reviewed serve and stays off.
 - The ungated state-bucket split is inert for this model because its compressor-ring caches have one page size. That conclusion does not rely on the KV record format.
 - `test_stage_overlay.sh` assumes the original repository layout, root deployment settings, the full generated config set and its bases, and an unpacked base-image source tree. These are not all included. `make_configs.py --check` also resolves paths through that original layout. Neither is a self-contained standalone suite here.
