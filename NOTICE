@@ -1,0 +1,72 @@
+PLI Labs — dsv41-kv-page-packing-1m
+Copyright 2026 Proprietary Legal Intelligence LLC
+
+This distribution packages an experimental source overlay and supporting tools.
+It contains modified third-party image files; their upstream copyright, license,
+and modification notices remain applicable. Packaging does not transfer authorship
+of the upstream optimizations to PLI Labs.
+
+HeNryous — deepseek-v41-1017-dgx-spark
+Copyright 2026 HeNryous
+HeNryous authored the selected page-packing, cache, and head-memory patches.
+Source: https://github.com/HeNryous/deepseek-v41-1017-dgx-spark
+License: Apache-2.0, retained in LICENSES/HeNryous-LICENSE.txt.
+Complete upstream attribution: LICENSES/HeNryous-NOTICE.txt, retained unchanged.
+The selected patch chain and changed-file provenance are in code/kvpack/MANIFEST.json.
+
+sudoingX — dgx-spark-deepseek-v41
+Copyright 2026 sudoingX
+The base image recipe and image plugin are Apache-2.0; the inherited license
+text is included in LICENSES/HeNryous-LICENSE.txt and the inherited NOTICE in
+LICENSES/HeNryous-NOTICE.txt. This package does not include the complete image.
+Source: https://github.com/sudoingX/dgx-spark-deepseek-v41
+
+vLLM
+Copyright contributors to the vLLM project
+The following files in code/kvpack/overlay/vllm/ are vLLM/image source carrying
+HeNryous's modifications, under Apache-2.0 (LICENSES/vLLM-LICENSE.txt and
+LICENSES/HeNryous-LICENSE.txt):
+  models/deepseek_v41/attention.py
+  models/deepseek_v41/common/ops/fused_compress_quant_cache.py
+  models/deepseek_v41/nvidia/dspark.py
+  models/deepseek_v41/nvidia/flashinfer_sparse.py
+  models/deepseek_v41/nvidia/model.py
+  v1/core/kv_cache_utils.py
+  v1/kv_cache_interface.py
+  v1/worker/utils.py
+  v1/worker/gpu/model_runner.py
+Source: https://github.com/vllm-project/vllm
+
+Additional HeNryous image files, Apache-2.0 (LICENSES/HeNryous-LICENSE.txt):
+  code/kvpack/overlay/vllm/models/deepseek_v41/common/ops/nvfp4_fi_cache.py
+  code/kvpack/overlay/vllm/v1/worker/gpu/dsv41_memprobe.py
+  code/kvpack/overlay/vllm_exl3_moe/tf_prompt.py
+These implement the dependent cache path, optional memory probe, and prompt
+scratch controls. The NVFP4 KV path remains disabled.
+
+TensorFold
+Copyright 2026 TensorFold contributors
+  code/kvpack/overlay/vllm_exl3_moe/tf_experts.py
+This expert wrapper is adapted from TensorFold and modified for the image plugin
+and HeNryous's transient-scratch and aliasing patches, as marked in its source.
+License: Apache-2.0, LICENSES/TensorFold-LICENSE.txt.
+Attribution and retained legacy MIT terms: LICENSES/TensorFold-NOTICE.txt.
+That file is the complete upstream plugin notice and also describes external
+kernels and other plugin files that are not shipped in this standalone overlay.
+
+exllamav3 (turboderp)
+Copyright (c) 2025 Turboderp
+License: MIT, LICENSES/exllamav3-LICENSE.txt.
+Source: https://github.com/turboderp-org/exllamav3
+This is an external runtime dependency of the base image and its EXL3 plugin;
+its complete library, quantizer, and CUDA kernels are not vendored here.
+
+The remaining files in code/kvpack/ (the reproducibility, staging, arithmetic,
+configuration and validation helpers) and code/launch/configs/ are PLI Labs
+supporting code. The upstream patches themselves are obtained separately for a
+rebuild and verified against their pinned hashes. Third-party image dependencies
+including torch, Triton, FlashInfer, and DeepGEMM are imported by the overlay;
+their libraries and binaries are not included in this source distribution.
+
+The model and its weights are not included. No model license is granted by
+this source-code package; the model's separate upstream terms apply.
